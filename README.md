@@ -2,7 +2,7 @@
 
 An AI-powered tool that analyzes how well a resume matches a job posting, then generates tailored resume bullet rewrites and a draft cover letter — grounded in the user's real experience, with a guardrail against fabricating skills or accomplishments they don't have.
 
-**Live demo:** [[add your Vercel URL here]](https://job-tailor-two.vercel.app/)
+**Live demo:** [[(https://job-tailor-two.vercel.app/)]]
 
 ## What it does
 
