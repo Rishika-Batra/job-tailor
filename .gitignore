@@ -1,0 +1,7 @@
+.env
+.env.local
+*.tfvars
+.terraform/
+*.tfstate
+*.tfstate.backup
+node_modules/
