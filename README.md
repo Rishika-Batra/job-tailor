@@ -2,7 +2,7 @@
 
 An AI-powered tool that analyzes how well a resume matches a job posting, then generates tailored resume bullet rewrites and a draft cover letter — grounded in the user's real experience, with a guardrail against fabricating skills or accomplishments they don't have.
 
-**Live demo:** [add your Vercel URL here]
+**Live demo:** https://job-tailor-two.vercel.app/
 
 ## What it does
 
@@ -120,8 +120,3 @@ Crucially, **no architecture changes were required.** The Step Functions orchest
    npm run dev
    ```
 
-## What I'd add next
-
-- **Cognito Auth:** Implement robust authentication for multi-user support and privacy.
-- **Feedback Loop:** Allow users to rate bullet rewrites to automatically refine and improve future LLM prompts.
-- **DynamoDB Optimization:** Swap the DynamoDB `Scan` in the history Lambda for a `Query` against a Global Secondary Index (GSI) to support scaling.
