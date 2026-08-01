@@ -124,7 +124,7 @@ export function AnalyzePage() {
       </p>
 
       {!jobId && (
-        <form onSubmit={handleSubmit} className="submit-form">
+        <form onSubmit={handleSubmit} className="submit-form card">
           <label className="field">
             <span>Resume (PDF)</span>
             <input

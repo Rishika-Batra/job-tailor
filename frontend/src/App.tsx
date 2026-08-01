@@ -151,7 +151,7 @@ function App() {
       </p>
 
       {!jobId && (
-        <form onSubmit={handleSubmit} className="submit-form">
+        <form onSubmit={handleSubmit} className="submit-form card">
           <label className="field">
             <span>Resume (PDF)</span>
             <input
@@ -203,43 +203,57 @@ function App() {
 
       {isComplete && result && (
         <div className="results">
-          <div className="score-badge">
-            <span className="score-number">{result.match_score ?? '—'}</span>
-            <span className="score-label">Match Score</span>
-            {result.seniority_signal && (
-              <span className="seniority">{result.seniority_signal}</span>
-            )}
+          <div className="score-card">
+            <div className="score-number">{result.match_score ?? '—'}</div>
+            <div className="score-details">
+              <div className="score-header">
+                <span className="score-label">Match Score</span>
+                {result.seniority_signal && (
+                  <span className="seniority-pill">{result.seniority_signal}</span>
+                )}
+              </div>
+              <div className="progress-track">
+                <div className="progress-fill" style={{ width: `${result.match_score ?? 0}%` }}></div>
+                <div className="progress-tick" style={{ left: `${result.match_score ?? 0}%` }}></div>
+              </div>
+              <p className="score-summary">
+                Your resume matches {result.match_score ?? 0}% of the must-have requirements.
+              </p>
+            </div>
           </div>
 
           {result.gaps && result.gaps.length > 0 && (
-            <section>
+            <section className="results-section card">
+              <div className="section-eyebrow">— unresolved —</div>
               <h2>Gaps</h2>
-              <ul className="gap-list">
+              <div className="gap-list">
                 {result.gaps.map((gap, i) => (
-                  <li key={i}>
+                  <div key={i} className="gap-card">
+                    <div className="gap-number">{(i + 1).toString().padStart(2, '0')}</div>
                     <strong>{gap.requirement}</strong>
                     <p>{gap.note}</p>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </section>
           )}
 
           {result.bullet_rewrites && result.bullet_rewrites.length > 0 && (
-            <section>
+            <section className="results-section card">
+              <div className="section-eyebrow">— fig. 01 — bullet revisions —</div>
               <h2>Suggested bullet rewrites</h2>
               <div className="bullet-list">
                 {result.bullet_rewrites.map((b, i) => (
-                  <div key={i} className="bullet-pair">
-                    <div className="bullet original">
-                      <span className="bullet-label">Original</span>
-                      <p>{b.original_bullet}</p>
+                  <div key={i} className="bullet-rewrite-card">
+                    <div className="bullet-section original">
+                      <span className="bullet-label">A — original</span>
+                      <p className="bullet-text">{b.original_bullet}</p>
                     </div>
-                    <div className="bullet rewritten">
-                      <span className="bullet-label">Suggested</span>
-                      <p>{b.rewritten_bullet}</p>
+                    <div className="bullet-section revised">
+                      <span className="bullet-label">B — revised</span>
+                      <p className="bullet-text">{b.rewritten_bullet}</p>
+                      {b.why && <p className="bullet-why">{b.why}</p>}
                     </div>
-                    <p className="bullet-why">{b.why}</p>
                   </div>
                 ))}
               </div>
@@ -247,13 +261,18 @@ function App() {
           )}
 
           {result.cover_letter && (
-            <section>
+            <section className="results-section card">
+              <div className="section-eyebrow">— draft —</div>
               <h2>Cover letter</h2>
-              <div className="cover-letter">
+              <div className="cover-letter-container">
                 <button className="copy-button" onClick={handleCopyCoverLetter}>
                   {copied ? 'Copied!' : 'Copy to clipboard'}
                 </button>
-                <pre>{result.cover_letter}</pre>
+                <div className="cover-letter-body">
+                  {result.cover_letter.split('\n\n').map((paragraph, idx) => (
+                    <p key={idx} className="cover-letter-p">{paragraph}</p>
+                  ))}
+                </div>
               </div>
             </section>
           )}
