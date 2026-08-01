@@ -120,8 +120,3 @@ Crucially, **no architecture changes were required.** The Step Functions orchest
    npm run dev
    ```
 
-## What I'd add next
-
-- **Cognito Auth:** Implement robust authentication for multi-user support and privacy.
-- **Feedback Loop:** Allow users to rate bullet rewrites to automatically refine and improve future LLM prompts.
-- **DynamoDB Optimization:** Swap the DynamoDB `Scan` in the history Lambda for a `Query` against a Global Secondary Index (GSI) to support scaling.
