@@ -421,9 +421,10 @@ button:disabled {
 .start-over {
   margin-top: 1rem;
   background: transparent;
-  color: var(--text-secondary);
-  border: 0.5px solid var(--border-color);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   align-self: center;
+  font-weight: 500;
 }
 
 .start-over:hover {
