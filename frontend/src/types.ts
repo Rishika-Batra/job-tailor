@@ -11,6 +11,7 @@ export type AnalysisResult = {
   seniority_signal?: string
   bullet_rewrites?: BulletRewrite[]
   cover_letter?: string
+  cover_letter_paragraphs?: string[]
 }
 
 export type StatusResponse =

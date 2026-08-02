@@ -5,8 +5,9 @@ export function ResultsView({ result }: { result: AnalysisResult }) {
   const [copied, setCopied] = useState(false)
 
   const handleCopyCoverLetter = async () => {
-    if (!result.cover_letter) return
-    await navigator.clipboard.writeText(result.cover_letter)
+    const text = result.cover_letter_paragraphs?.join('\n\n') ?? result.cover_letter
+    if (!text) return
+    await navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -67,7 +68,7 @@ export function ResultsView({ result }: { result: AnalysisResult }) {
         </section>
       )}
 
-      {result.cover_letter && (
+      {(result.cover_letter_paragraphs?.length || result.cover_letter) && (
         <section>
           <div className="section-eyebrow">— draft —</div>
           <h2>Cover letter</h2>
@@ -75,7 +76,11 @@ export function ResultsView({ result }: { result: AnalysisResult }) {
             <button className="copy-button" onClick={handleCopyCoverLetter}>
               {copied ? 'Copied!' : 'Copy'}
             </button>
-            <pre>{result.cover_letter}</pre>
+            <div className="cover-letter-body">
+              {(result.cover_letter_paragraphs ?? (result.cover_letter ? [result.cover_letter] : [])).map((para, i) => (
+                <p key={i} className="cover-letter-p">{para.trim()}</p>
+              ))}
+            </div>
           </div>
         </section>
       )}

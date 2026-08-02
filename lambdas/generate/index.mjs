@@ -54,7 +54,7 @@ Return ONLY valid JSON matching this schema, no preamble, no markdown fences:
 
 {
   "rewritten_bullets": [{ "original": "string", "rewritten": "string", "why": "short explanation of what changed and why" }],
-  "cover_letter": "string, 3-4 paragraphs, professional tone, references specific details from both the resume and job description"
+  "cover_letter_paragraphs": ["string"]  // 3-4 SEPARATE array elements, one per paragraph. Do NOT return this as one long string. Each element is a distinct paragraph: opening/intro, body paragraph(s) on relevant experience, honest acknowledgment of gaps if any, closing. Professional tone, references specific details from both the resume and job description.
 }
 
 Pick the 3-5 resume bullets most relevant to this job description to rewrite.
