@@ -1,8 +1,27 @@
 import { useState, useEffect, useRef } from 'react'
-import { ResultsView } from './ResultsView'
-import type { AnalysisResult, StatusResponse } from './types'
+import { useAuth } from './AuthContext'
+import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
+
+type Gap = { requirement: string; note: string }
+type Match = { requirement: string; evidence_from_resume: string }
+type BulletRewrite = { original_bullet: string; rewritten_bullet: string; why: string }
+
+type AnalysisResult = {
+  match_score?: number
+  must_have_requirements?: string[]
+  nice_to_have_requirements?: string[]
+  matches?: Match[]
+  gaps?: Gap[]
+  seniority_signal?: string
+  bullet_rewrites?: BulletRewrite[]
+  cover_letter?: string
+}
+
+type StatusResponse =
+  | { status: 'complete'; result: AnalysisResult }
+  | { status: string }
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -17,7 +36,7 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
-export function AnalyzePage() {
+export default function AnalyzePage() {
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [jdText, setJdText] = useState('')
   const [jobId, setJobId] = useState<string | null>(null)
@@ -25,6 +44,8 @@ export function AnalyzePage() {
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const { token } = useAuth()
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -40,7 +61,11 @@ export function AnalyzePage() {
 
     const poll = async () => {
       try {
-        const res = await fetch(`${API_BASE}/status/${jobId}`)
+        const res = await fetch(`${API_BASE}/status/${jobId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         if (res.status === 404) {
           setError('Job not found.')
           stopPolling()
@@ -72,6 +97,7 @@ export function AnalyzePage() {
     setStatus(null)
     setResult(null)
     setError(null)
+    setCopied(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,10 +111,14 @@ export function AnalyzePage() {
     setError(null)
 
     try {
+      console.log('Sending token (first 30 chars):', token ? token.substring(0, 30) + '...' : 'null');
       const resumeBase64 = await fileToBase64(resumeFile)
       const res = await fetch(`${API_BASE}/submit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ resumeBase64, jdText }),
       })
 
@@ -109,6 +139,13 @@ export function AnalyzePage() {
 
   const handleRetry = () => {
     resetForNewSubmission()
+  }
+
+  const handleCopyCoverLetter = async () => {
+    if (!result?.cover_letter) return
+    await navigator.clipboard.writeText(result.cover_letter)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   const isProcessing = jobId && status && !status.startsWith('failed') && status !== 'complete'
@@ -175,13 +212,87 @@ export function AnalyzePage() {
       )}
 
       {isComplete && result && (
-        <>
-          <ResultsView result={result} />
+        <div className="results">
+          <div className="score-card">
+            <div className="score-number">{result.match_score ?? '—'}</div>
+            <div className="score-details">
+              <div className="score-header">
+                <span className="score-label">Match Score</span>
+                {result.seniority_signal && (
+                  <span className="seniority-pill">{result.seniority_signal}</span>
+                )}
+              </div>
+              <div className="progress-track">
+                <div className="progress-fill" style={{ width: `${result.match_score ?? 0}%` }}></div>
+                <div className="progress-tick" style={{ left: `${result.match_score ?? 0}%` }}></div>
+              </div>
+              <p className="score-summary">
+                Your resume matches {result.match_score ?? 0}% of the must-have requirements.
+              </p>
+            </div>
+          </div>
+
+          {result.gaps && result.gaps.length > 0 && (
+            <section className="results-section card">
+              <div className="section-eyebrow">— unresolved —</div>
+              <h2>Gaps</h2>
+              <div className="gap-list">
+                {result.gaps.map((gap, i) => (
+                  <div key={i} className="gap-card">
+                    <div className="gap-number">{(i + 1).toString().padStart(2, '0')}</div>
+                    <strong>{gap.requirement}</strong>
+                    <p>{gap.note}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {result.bullet_rewrites && result.bullet_rewrites.length > 0 && (
+            <section className="results-section card">
+              <div className="section-eyebrow">— fig. 01 — bullet revisions —</div>
+              <h2>Suggested bullet rewrites</h2>
+              <div className="bullet-list">
+                {result.bullet_rewrites.map((b, i) => (
+                  <div key={i} className="bullet-rewrite-card">
+                    <div className="bullet-section original">
+                      <span className="bullet-label">A — original</span>
+                      <p className="bullet-text">{b.original_bullet}</p>
+                    </div>
+                    <div className="bullet-section revised">
+                      <span className="bullet-label">B — revised</span>
+                      <p className="bullet-text">{b.rewritten_bullet}</p>
+                      {b.why && <p className="bullet-why">{b.why}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {result.cover_letter && (
+            <section className="results-section card">
+              <div className="section-eyebrow">— draft —</div>
+              <h2>Cover letter</h2>
+              <div className="cover-letter-container">
+                <button className="copy-button" onClick={handleCopyCoverLetter}>
+                  {copied ? 'Copied!' : 'Copy to clipboard'}
+                </button>
+                <div className="cover-letter-body">
+                  {result.cover_letter.split('\n\n').map((paragraph, idx) => (
+                    <p key={idx} className="cover-letter-p">{paragraph}</p>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
           <button className="start-over" onClick={handleRetry}>
             Analyze another job
           </button>
-        </>
+        </div>
       )}
     </div>
   )
 }
+

@@ -22,3 +22,18 @@ output "state_machine_arn" {
   description = "The ARN of the Step Functions State Machine"
   value       = aws_sfn_state_machine.processing_pipeline.arn
 }
+
+output "cognito_user_pool_id" {
+  description = "The ID of the Cognito User Pool"
+  value       = aws_cognito_user_pool.pool.id
+}
+
+output "cognito_client_id" {
+  description = "The ID of the Cognito User Pool Client"
+  value       = aws_cognito_user_pool_client.client.id
+}
+
+output "cognito_region" {
+  description = "The region of the Cognito User Pool"
+  value       = "us-east-1"
+}

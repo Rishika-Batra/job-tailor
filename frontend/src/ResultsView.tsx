@@ -33,15 +33,15 @@ export function ResultsView({ result }: { result: AnalysisResult }) {
         <section>
           <div className="section-eyebrow">— unresolved —</div>
           <h2>Gaps</h2>
-          <ul className="gap-list">
+          <div className="gap-list">
             {result.gaps.map((gap, i) => (
-              <li key={i} className="gap-card">
+              <div key={i} className="gap-card">
                 <span className="gap-number">{(i + 1).toString().padStart(2, '0')}</span>
                 <strong>{gap.requirement}</strong>
                 <p>{gap.note}</p>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </section>
       )}
 

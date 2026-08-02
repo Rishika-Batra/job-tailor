@@ -15,6 +15,16 @@ const stateMachineArn = process.env.STATE_MACHINE_ARN;
 
 export const handler = async (event) => {
   try {
+    const authorizer = event.requestContext?.authorizer;
+    const userId = authorizer?.claims?.sub || authorizer?.jwt?.claims?.sub;
+    
+    if (!userId) {
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ error: "Unauthorized" }),
+      };
+    }
+
     const body = JSON.parse(event.body || "{}");
     const { resumeBase64, jdText } = body;
 
@@ -57,6 +67,7 @@ export const handler = async (event) => {
         TableName: tableName,
         Item: {
           jobId,
+          userId,
           status: "processing",
           createdAt,
         },

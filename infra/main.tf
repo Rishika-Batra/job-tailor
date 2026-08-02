@@ -121,8 +121,20 @@ resource "aws_apigatewayv2_api" "http_api" {
   cors_configuration {
     allow_origins = ["*"]
     allow_methods = ["GET", "POST", "OPTIONS"]
-    allow_headers = ["content-type"]
+    allow_headers = ["content-type", "authorization"]
     max_age       = 300
+  }
+}
+
+resource "aws_apigatewayv2_authorizer" "cognito_authorizer" {
+  api_id           = aws_apigatewayv2_api.http_api.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "cognito-authorizer"
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.client.id]
+    issuer   = "https://${aws_cognito_user_pool.pool.endpoint}"
   }
 }
 
@@ -143,6 +155,8 @@ resource "aws_apigatewayv2_route" "post_submit" {
   api_id    = aws_apigatewayv2_api.http_api.id
   route_key = "POST /submit"
   target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_authorizer.id
 }
 
 resource "aws_lambda_permission" "apigw" {
@@ -188,6 +202,8 @@ resource "aws_apigatewayv2_route" "get_status" {
   api_id    = aws_apigatewayv2_api.http_api.id
   route_key = "GET /status/{jobId}"
   target    = "integrations/${aws_apigatewayv2_integration.status_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_authorizer.id
 }
 
 resource "aws_lambda_permission" "apigw_status" {
@@ -232,6 +248,8 @@ resource "aws_apigatewayv2_route" "get_history" {
   api_id    = aws_apigatewayv2_api.http_api.id
   route_key = "GET /history"
   target    = "integrations/${aws_apigatewayv2_integration.history_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_authorizer.id
 }
 
 resource "aws_lambda_permission" "apigw_history" {

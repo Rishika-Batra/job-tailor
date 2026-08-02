@@ -6,7 +6,16 @@ const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 const tableName = process.env.TABLE;
 
-export const handler = async () => {
+export const handler = async (event) => {
+  const authorizer = event.requestContext?.authorizer;
+  const userId = authorizer?.claims?.sub || authorizer?.jwt?.claims?.sub;
+  if (!userId) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: "Unauthorized" }),
+    };
+  }
+
   // Note: DynamoDB Scan does not scale well as the table grows.
   // For multi-user support, this should move to a Query against a
   // GSI keyed on userId (or another partition scoped to the caller)
@@ -14,9 +23,12 @@ export const handler = async () => {
   const scanResult = await docClient.send(
     new ScanCommand({
       TableName: tableName,
-      FilterExpression: '#st = :complete',
+      FilterExpression: '#st = :complete AND userId = :userId',
       ExpressionAttributeNames: { '#st': 'status' },
-      ExpressionAttributeValues: { ':complete': 'complete' }
+      ExpressionAttributeValues: { 
+        ':complete': 'complete',
+        ':userId': userId
+      }
     })
   );
 
