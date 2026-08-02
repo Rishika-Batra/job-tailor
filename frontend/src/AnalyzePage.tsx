@@ -97,7 +97,6 @@ export default function AnalyzePage() {
     setStatus(null)
     setResult(null)
     setError(null)
-    setCopied(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
