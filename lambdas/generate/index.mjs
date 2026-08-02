@@ -54,7 +54,13 @@ Return ONLY valid JSON matching this schema, no preamble, no markdown fences:
 
 {
   "rewritten_bullets": [{ "original": "string", "rewritten": "string", "why": "short explanation of what changed and why" }],
-  "cover_letter_paragraphs": ["string"]  // 3-4 SEPARATE array elements, one per paragraph. Do NOT return this as one long string. Each element is a distinct paragraph: opening/intro, body paragraph(s) on relevant experience, honest acknowledgment of gaps if any, closing. Professional tone, references specific details from both the resume and job description.
+  "cover_letter_paragraphs": ["string"]  // 5-6 SEPARATE array elements forming a complete, formal business letter. Do NOT return this as one long string. Structure MUST be exactly:
+  //   [0] Salutation on its own line: "Dear Hiring Manager," (or "Dear [Company] Hiring Team," if a company name is identifiable in the JD)
+  //   [1] Opening paragraph: state the role being applied for and a brief, professional hook
+  //   [2-3] Body paragraph(s): specific relevant experience, projects, and skills that map to the job description
+  //   [second-to-last] Honest, brief acknowledgment of any gap if relevant, framed positively (eagerness to learn), without groveling or over-apologizing
+  //   [last] Closing paragraph ending in "Sincerely," followed by a line break and the candidate'\''s full name (pull the name from the resume text)
+  // Tone: formal, confident, professional business-letter register throughout — avoid casual phrasing, avoid excessive enthusiasm/exclamation, avoid generic filler like "esteemed organization"
 }
 
 Pick the 3-5 resume bullets most relevant to this job description to rewrite.
@@ -126,16 +132,21 @@ ${analysisJson}
 
   // Update the DynamoDB record for this jobId: set status to "complete", resultKey to the S3 key above, and completedAt to the current timestamp
   const completedAt = new Date().toISOString();
+  const jdSnippet = jdText.trim().slice(0, 150);
+  const matchScore = gapsAnalysis.match_score ?? null;
+
   await docClient.send(
     new UpdateCommand({
       TableName: tableName,
       Key: { jobId },
-      UpdateExpression: 'SET #st = :status, resultKey = :resultKey, completedAt = :completedAt',
+      UpdateExpression: 'SET #st = :status, resultKey = :resultKey, completedAt = :completedAt, jdSnippet = :jdSnippet, matchScore = :matchScore',
       ExpressionAttributeNames: { '#st': 'status' },
       ExpressionAttributeValues: {
         ':status': 'complete',
         ':resultKey': finalKey,
-        ':completedAt': completedAt
+        ':completedAt': completedAt,
+        ':jdSnippet': jdSnippet,
+        ':matchScore': matchScore
       }
     })
   );

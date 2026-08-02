@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { ResultsView } from './ResultsView'
 import { useAuth } from './AuthContext'
 import './App.css'
 
@@ -44,7 +45,6 @@ export default function AnalyzePage() {
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
   const { token } = useAuth()
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -141,12 +141,6 @@ export default function AnalyzePage() {
     resetForNewSubmission()
   }
 
-  const handleCopyCoverLetter = async () => {
-    if (!result?.cover_letter) return
-    await navigator.clipboard.writeText(result.cover_letter)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   const isProcessing = jobId && status && !status.startsWith('failed') && status !== 'complete'
   const isFailed = status?.startsWith('failed')
@@ -212,85 +206,12 @@ export default function AnalyzePage() {
       )}
 
       {isComplete && result && (
-        <div className="results">
-          <div className="score-card">
-            <div className="score-number">{result.match_score ?? '—'}</div>
-            <div className="score-details">
-              <div className="score-header">
-                <span className="score-label">Match Score</span>
-                {result.seniority_signal && (
-                  <span className="seniority-pill">{result.seniority_signal}</span>
-                )}
-              </div>
-              <div className="progress-track">
-                <div className="progress-fill" style={{ width: `${result.match_score ?? 0}%` }}></div>
-                <div className="progress-tick" style={{ left: `${result.match_score ?? 0}%` }}></div>
-              </div>
-              <p className="score-summary">
-                Your resume matches {result.match_score ?? 0}% of the must-have requirements.
-              </p>
-            </div>
-          </div>
-
-          {result.gaps && result.gaps.length > 0 && (
-            <section className="results-section card">
-              <div className="section-eyebrow">— unresolved —</div>
-              <h2>Gaps</h2>
-              <div className="gap-list">
-                {result.gaps.map((gap, i) => (
-                  <div key={i} className="gap-card">
-                    <div className="gap-number">{(i + 1).toString().padStart(2, '0')}</div>
-                    <strong>{gap.requirement}</strong>
-                    <p>{gap.note}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {result.bullet_rewrites && result.bullet_rewrites.length > 0 && (
-            <section className="results-section card">
-              <div className="section-eyebrow">— fig. 01 — bullet revisions —</div>
-              <h2>Suggested bullet rewrites</h2>
-              <div className="bullet-list">
-                {result.bullet_rewrites.map((b, i) => (
-                  <div key={i} className="bullet-rewrite-card">
-                    <div className="bullet-section original">
-                      <span className="bullet-label">A — original</span>
-                      <p className="bullet-text">{b.original_bullet}</p>
-                    </div>
-                    <div className="bullet-section revised">
-                      <span className="bullet-label">B — revised</span>
-                      <p className="bullet-text">{b.rewritten_bullet}</p>
-                      {b.why && <p className="bullet-why">{b.why}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {result.cover_letter && (
-            <section className="results-section card">
-              <div className="section-eyebrow">— draft —</div>
-              <h2>Cover letter</h2>
-              <div className="cover-letter-container">
-                <button className="copy-button" onClick={handleCopyCoverLetter}>
-                  {copied ? 'Copied!' : 'Copy to clipboard'}
-                </button>
-                <div className="cover-letter-body">
-                  {result.cover_letter.split('\n\n').map((paragraph, idx) => (
-                    <p key={idx} className="cover-letter-p">{paragraph}</p>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-
+        <>
+          <ResultsView result={result} />
           <button className="start-over" onClick={handleRetry}>
             Analyze another job
           </button>
-        </div>
+        </>
       )}
     </div>
   )
