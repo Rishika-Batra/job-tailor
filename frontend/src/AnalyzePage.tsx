@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ResultsView } from './ResultsView'
 import { useAuth } from './AuthContext'
+import { GitHubRepoPicker } from './GitHubRepoPicker'
 import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -207,6 +208,8 @@ export default function AnalyzePage() {
       {isComplete && result && (
         <>
           <ResultsView result={result} />
+          {jobId && <GitHubRepoPicker jobId={jobId} jdText={jdText} />}
+
           <button className="start-over" onClick={handleRetry}>
             Analyze another job
           </button>
