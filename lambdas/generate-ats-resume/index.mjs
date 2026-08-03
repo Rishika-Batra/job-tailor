@@ -51,26 +51,40 @@ export const handler = async (event) => {
 
     const gapsAnalysis = finalResult.gaps || [];
 
-    const prompt = `You are an expert resume writer specializing in ATS (Applicant Tracking System) optimization. Restructure this resume to be maximally ATS-compatible and tailored to the target job, using ONLY real content from the original resume and the provided project list — never invent experience, skills, dates, or accomplishments.
+    const prompt = `You are an expert resume editor. Your task is to make TWO targeted edits to this resume for a specific job application — nothing else. Do NOT restructure, reorder, rewrite, or rephrase any other part of the resume.
 
-ATS RULES YOU MUST FOLLOW:
-- Use standard section headers only: SUMMARY, SKILLS, EXPERIENCE, PROJECTS, EDUCATION, CERTIFICATIONS
-- No tables, no columns, no graphics, no special characters or symbols in bullets
-- Bullets start with strong action verbs
-- Naturally incorporate keywords from the job description that genuinely apply to the candidate's real background — do not keyword-stuff
-- Keep dates, company names, degree names exactly as they appear in the original resume
+STRICT RULES:
+1. Copy EVERY section exactly as it appears in the original resume — same section names, same order, same wording — EXCEPT for the two sections below.
+2. ONLY modify these two sections:
+   a. SKILLS: reorder/lightly reword to emphasize skills that genuinely match the job description. Do not add skills the candidate doesn't have.
+   b. PROJECTS: rewrite bullets for EXISTING projects to better match the job description's language (rephrase only, no fabrication), AND add the provided selected GitHub projects with 1-2 concise bullets each.
+3. Never invent experience, skills, dates, companies, degrees, or accomplishments not present in the original resume.
+4. LENGTH CONSTRAINT — THIS IS CRITICAL: the final resume MUST fit on a single page when rendered. Be ruthlessly concise:
+   - Each bullet is ONE line only (roughly 100-120 characters max), no wrapped multi-line bullets
+   - Maximum 3 bullets per job/project
+   - Skills as a single comma-separated line, not a long list
+   - If the original resume has many projects/experience entries, keep only the most relevant ones to stay within one page — cutting weaker/less relevant original entries is acceptable to preserve length, but never fabricate to fill space
 
 Return ONLY valid JSON, no preamble, no markdown fences, matching this schema:
 {
-  "summary": "2-3 sentence professional summary tailored to this role, based on real background",
+  "header": {
+    "name": "string — copy exactly from the original resume",
+    "contact": "string — copy the contact line exactly (phone, email, links) as it appears in the original resume, preserving the separators used"
+  },
+  "summary": "string or null — ONLY include if the original resume already has a summary/objective section; otherwise set to null, do not invent one",
   "skills": ["string"],
   "experience": [{ "title": "string", "company": "string", "dates": "string", "bullets": ["string"] }],
   "projects": [{ "name": "string", "tech": "string", "bullets": ["string"] }],
   "education": [{ "degree": "string", "institution": "string", "dates": "string" }],
-  "certifications": ["string"]
+  "certifications": ["string"],
+  "other_sections": [{ "sectionTitle": "string — the exact section heading from the original resume, e.g. Positions of Responsibility", "entries": [{ "title": "string", "dates": "string", "bullets": ["string"] }] }]
 }
 
-Include the following selected GitHub projects in the "projects" section, writing 2-3 ATS-friendly bullets for each based on their name/description/language (do not fabricate metrics or details not implied by the description):
+CRITICAL: The "header", "other_sections", and any section of the original resume not covered by summary/skills/experience/projects/education/certifications MUST be captured somewhere in this JSON. Do not silently drop any section that exists in the original resume — if it doesn't fit an existing field, put it in "other_sections" verbatim. The only fields you are allowed to meaningfully CHANGE are "skills" and "projects" — every other field should be a faithful copy of the original resume's content.
+
+Copy experience, education, and certifications directly from the original resume (verbatim structure and wording) — do not rewrite them.
+
+Include these selected GitHub projects in the "projects" array, writing 1-2 concise ATS-friendly bullets for each based on their name/description/language (do not fabricate metrics or details not implied by the description):
 ${JSON.stringify(selectedRepos)}
 
 ORIGINAL RESUME:

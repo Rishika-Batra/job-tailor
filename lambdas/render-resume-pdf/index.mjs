@@ -39,25 +39,38 @@ export const handler = async (event) => {
     // Generate PDF in memory
     const pdfBuffer = await new Promise((resolve, reject) => {
       try {
-        const doc = new PDFDocument({ margin: 54 }); // 0.75 inch = 54 points
+        const doc = new PDFDocument({ margin: 36, autoFirstPage: true, bufferPages: true }); // 0.5 inch margins for tighter fit
         const chunks = [];
         
         doc.on('data', chunk => chunks.push(chunk));
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         
-        // Font settings
+        // Font settings — compact for one-page fit
         const fontName = 'Helvetica';
         const fontBold = 'Helvetica-Bold';
-        const h1Size = 12;
-        const bodySize = 10;
+        const h1Size = 10.5;
+        const bodySize = 9;
         
         // Helper to draw a section header
         const drawHeader = (title) => {
-          doc.moveDown(1);
+          doc.moveDown(0.5);
           doc.font(fontBold).fontSize(h1Size).text(title.toUpperCase());
-          doc.moveDown(0.2);
+          doc.moveTo(doc.x, doc.y).lineTo(doc.page.width - doc.page.margins.right, doc.y).lineWidth(0.5).stroke();
+          doc.moveDown(0.15);
         };
         
+        // HEADER (name + contact)
+        if (resume.header) {
+          if (resume.header.name) {
+            doc.font(fontBold).fontSize(16).text(resume.header.name, { align: 'center' });
+          }
+          if (resume.header.contact) {
+            doc.moveDown(0.15);
+            doc.font(fontName).fontSize(bodySize).text(resume.header.contact, { align: 'center' });
+          }
+          doc.moveDown(0.3);
+        }
+
         // SUMMARY
         if (resume.summary) {
           drawHeader('Summary');
@@ -87,12 +100,12 @@ export const handler = async (event) => {
             }
             
             if (exp.bullets) {
-              doc.moveDown(0.2);
+              doc.moveDown(0.1);
               exp.bullets.forEach(bullet => {
                 doc.font(fontName).fontSize(bodySize).text(`• ${bullet}`, { indent: 15 });
               });
             }
-            doc.moveDown(0.5);
+            doc.moveDown(0.3);
           });
         }
         
@@ -108,12 +121,12 @@ export const handler = async (event) => {
             }
             
             if (proj.bullets) {
-              doc.moveDown(0.2);
+              doc.moveDown(0.1);
               proj.bullets.forEach(bullet => {
                 doc.font(fontName).fontSize(bodySize).text(`• ${bullet}`, { indent: 15 });
               });
             }
-            doc.moveDown(0.5);
+            doc.moveDown(0.3);
           });
         }
         
@@ -132,7 +145,7 @@ export const handler = async (event) => {
             } else {
               doc.text(''); // end line
             }
-            doc.moveDown(0.5);
+            doc.moveDown(0.3);
           });
         }
         
@@ -144,6 +157,29 @@ export const handler = async (event) => {
           });
         }
         
+        // OTHER SECTIONS (e.g. Positions of Responsibility)
+        if (resume.other_sections && resume.other_sections.length > 0) {
+          resume.other_sections.forEach(section => {
+            if (!section.sectionTitle || !section.entries) return;
+            drawHeader(section.sectionTitle);
+            section.entries.forEach(entry => {
+              doc.font(fontBold).fontSize(bodySize).text(entry.title || '', { continued: entry.dates ? true : false });
+              if (entry.dates) {
+                doc.font(fontName).text(` | ${entry.dates}`);
+              } else {
+                doc.text('');
+              }
+              if (entry.bullets) {
+                doc.moveDown(0.1);
+                entry.bullets.forEach(bullet => {
+                  doc.font(fontName).fontSize(bodySize).text(`• ${bullet}`, { indent: 15 });
+                });
+              }
+              doc.moveDown(0.3);
+            });
+          });
+        }
+
         doc.end();
       } catch (err) {
         reject(err);
