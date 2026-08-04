@@ -4,10 +4,9 @@ import { useAuth } from './AuthContext';
 import { signIn, signUp, confirmSignUp } from './auth';
 import './LoginPage.css';
 
-type Mode = 'signin' | 'signup' | 'confirm';
-
 export default function LoginPage() {
-  const [mode, setMode] = useState<Mode>('signin');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -26,17 +25,18 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (mode === 'signin') {
-        const token = await signIn(email, password);
-        login(token);
-        navigate(from, { replace: true });
-      } else if (mode === 'signup') {
-        await signUp(email, password);
-        setMode('confirm');
-      } else if (mode === 'confirm') {
+      if (isConfirming) {
         await confirmSignUp(email, code);
-        const token = await signIn(email, password);
-        login(token);
+        setIsConfirming(false);
+        setIsSignUp(false);
+      } else if (isSignUp) {
+        const result = await signUp(email, password);
+        if (result.nextStep?.signUpStep === 'CONFIRM_SIGN_UP') {
+          setIsConfirming(true);
+        }
+      } else {
+        await signIn(email, password);
+        login();
         navigate(from, { replace: true });
       }
     } catch (err: any) {
@@ -48,91 +48,101 @@ export default function LoginPage() {
 
   return (
     <div className="login-scene">
-      <div className="login-stars" />
-      <div className="aurora aurora-a" />
-      <div className="aurora aurora-b" />
-      <div className="aurora aurora-c" />
-      <div className="login-vignette" />
+      {/* SVG Watercolor / Paint Turbulence Filters */}
+      <svg className="cloud-svg-filter">
+        <defs>
+          <filter id="cloud-wave-1" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.008 0.018" numOctaves="4" seed="12" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="140" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <filter id="cloud-wave-2" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.015 0.025" numOctaves="5" seed="45" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="180" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+      </svg>
 
-      <div className="streak streak-a" />
-      <div className="streak streak-b" />
-      <div className="streak streak-c" />
-      <div className="streak streak-d" />
-      <div className="streak streak-e" />
+      {/* Layered Diagonal Organic Cloud Waves */}
+      <div className="cloud-wave wave-back" />
+      <div className="cloud-wave wave-mid-dark" />
+      <div className="cloud-wave wave-mid-purple" />
+      <div className="cloud-wave wave-front-bright" />
+      <div className="cloud-wave wave-bottom-glow" />
+
+      {/* Dust Particles and Star Field */}
+      <div className="star-dust-overlay" />
+
+      {/* Four-Point Stars */}
+      <div className="sparkle-star star-left-mid">✦</div>
+      <div className="sparkle-star star-right-top">✦</div>
+      <div className="sparkle-star star-right-mid">✦</div>
+      <div className="sparkle-star star-right-bottom">✦</div>
+      <div className="sparkle-star star-bottom-left">✦</div>
 
       <div className="login-wrap">
         <form onSubmit={handleSubmit} className="login-card">
-          <div className="globe-wrap">
-            <div className="globe">
-              <div className="ring ring-1" />
-              <div className="ring ring-2" />
-              <div className="ring ring-3" />
-              <div className="ring ring-4" />
-              <div className="ring ring-5" />
-            </div>
+          <div className="mini-globe-icon">
+            <div className="mini-ring" />
+            <div className="mini-ring r2" />
           </div>
 
           <h1>Job Tailor</h1>
-          <p className="login-subtitle">
-            {mode === 'signin' ? 'Sign in to your account' : mode === 'signup' ? 'Create a new account' : 'Verify your email'}
+          <p className="subtitle">
+            {isConfirming
+              ? 'Enter verification code'
+              : isSignUp
+              ? 'Create a new account'
+              : 'Sign in to your account'}
           </p>
 
-          <label className="field">
-            <span>Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@company.com"
-              required
-              disabled={mode === 'confirm'}
-            />
-          </label>
+          {error && <div className="login-error">{error}</div>}
 
-          {mode !== 'confirm' && (
-            <label className="field">
-              <span>Password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                required
-              />
-            </label>
-          )}
-
-          {mode === 'confirm' && (
-            <label className="field">
-              <span>Verification code</span>
+          {isConfirming ? (
+            <div className="input-group">
+              <label>Verification Code</label>
               <input
                 type="text"
+                placeholder="Enter code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="123456"
                 required
               />
-            </label>
+            </div>
+          ) : (
+            <>
+              <div className="input-group">
+                <label>Email</label>
+                <input
+                  type="email"
+                  placeholder="user@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="input-group">
+                <label>Password</label>
+                <input
+                  type="password"
+                  placeholder="••••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </>
           )}
 
-          {error && <p className="error-text">{error}</p>}
-
-          <button type="submit" disabled={loading}>
-            {loading ? 'Processing...' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Sign up' : 'Confirm'}
+          <button type="submit" className="submit-btn" disabled={loading}>
+            {loading ? 'Processing...' : isConfirming ? 'Verify' : isSignUp ? 'Sign up' : 'Sign in'}
           </button>
 
-          {mode === 'signin' && (
-            <p className="switch-mode">
-              Don't have an account?{' '}
-              <a onClick={(e) => { e.preventDefault(); setMode('signup'); setError(null); }}>Sign up</a>
-            </p>
-          )}
-          {mode === 'signup' && (
-            <p className="switch-mode">
-              Already have an account?{' '}
-              <a onClick={(e) => { e.preventDefault(); setMode('signin'); setError(null); }}>Sign in</a>
-            </p>
-          )}
+          <p className="login-toggle">
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <span onClick={() => setIsSignUp(!isSignUp)}>
+              {isSignUp ? 'Sign in' : 'Sign up'}
+            </span>
+          </p>
         </form>
       </div>
     </div>
