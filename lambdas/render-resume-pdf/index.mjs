@@ -29,7 +29,7 @@ export const handler = async (event) => {
 
     const pdfBuffer = await new Promise((resolve, reject) => {
       try {
-        const doc = new PDFDocument({ margin: 20, autoFirstPage: true, bufferPages: true, size: 'LETTER' });
+        const doc = new PDFDocument({ margin: 24, autoFirstPage: true, bufferPages: true, size: 'LETTER' });
         const chunks = [];
         
         doc.on('data', chunk => chunks.push(chunk));
@@ -46,7 +46,7 @@ export const handler = async (event) => {
           doc.moveDown(0.5);
           doc.font(fontBold).fontSize(h1Size).text(title.toUpperCase());
           doc.moveTo(doc.x, doc.y).lineTo(doc.page.width - doc.page.margins.right, doc.y).lineWidth(0.5).stroke();
-          doc.moveDown(0.12);
+          doc.moveDown(0.13);
         };
         
         const drawSplitLine = (leftText, rightText, fontType = fontBold, isItalicRight = false, linkUrl = null) => {
@@ -67,9 +67,9 @@ export const handler = async (event) => {
 
         const renderBullets = (bullets) => {
           if (!bullets || bullets.length === 0) return;
-          doc.moveDown(0.05);
+          doc.moveDown(0.06);
           doc.font(fontName).fontSize(bodySize).list(bullets, { bulletRadius: 1.5, textIndent: 10, bulletIndent: 3 });
-          doc.moveDown(0.1);
+          doc.moveDown(0.11);
         };
 
         // HEADER
@@ -77,7 +77,7 @@ export const handler = async (event) => {
           if (resume.header.name) {
             doc.font(fontBold).fontSize(nameSize).text(resume.header.name, { align: 'center' });
           }
-          doc.moveDown(0.12);
+          doc.moveDown(0.13);
           
           let contactLine = [];
           if (resume.header.phone) contactLine.push(resume.header.phone);
@@ -148,7 +148,7 @@ export const handler = async (event) => {
             if (instText || gpaText) {
               drawSplitLine(instText, gpaText, fontName, true);
             }
-            doc.moveDown(0.12);
+            doc.moveDown(0.13);
           });
         }
 
@@ -156,7 +156,7 @@ export const handler = async (event) => {
         if (resume.certifications && resume.certifications.length > 0) {
           drawHeaderLine('Certifications');
           doc.font(fontName).fontSize(bodySize).list(resume.certifications, { bulletRadius: 1.5, textIndent: 10, bulletIndent: 3 });
-          doc.moveDown(0.12);
+          doc.moveDown(0.13);
         }
 
         // SKILLS
@@ -177,7 +177,7 @@ export const handler = async (event) => {
             if (exp.company) leftStr += ` — ${exp.company}`;
             drawSplitLine(leftStr, exp.dates, fontBold, false);
             renderBullets(exp.bullets);
-            doc.moveDown(0.12);
+            doc.moveDown(0.13);
           });
         }
 
@@ -197,7 +197,7 @@ export const handler = async (event) => {
               doc.font(fontOblique).fontSize(bodySize).text(proj.tech);
             }
             renderBullets(proj.bullets);
-            doc.moveDown(0.12);
+            doc.moveDown(0.13);
           });
         }
 
@@ -209,7 +209,7 @@ export const handler = async (event) => {
             section.entries.forEach(entry => {
               drawSplitLine(entry.title, entry.dates, fontBold, false);
               renderBullets(entry.bullets);
-              doc.moveDown(0.12);
+              doc.moveDown(0.13);
             });
           });
         }
