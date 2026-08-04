@@ -93,23 +93,41 @@ JOB DESCRIPTION:
 ${jdText}
 """`;
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${groqApiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-oss-120b",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      })
-    });
+    // Try multiple models in order. Groq enforces separate daily token quotas per
+    // model, so if the primary model is rate-limited we fall back to another rather
+    // than failing the whole request. Only a 429 triggers a fallback; any other
+    // error status throws immediately, same as before.
+    const MODELS = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+
+    let response;
+    let lastErrBody;
+    for (const model of MODELS) {
+      response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${groqApiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        })
+      });
+
+      if (response.ok) break;
+
+      lastErrBody = await response.text();
+      console.error(`Groq API error ${response.status} on model ${model}:`, lastErrBody);
+
+      if (response.status !== 429) {
+        throw new Error(`Groq API returned ${response.status}`);
+      }
+      // 429 (rate limit) — try the next model
+    }
 
     if (!response.ok) {
-      const errBody = await response.text();
-      console.error(`Groq API error ${response.status}:`, errBody);
-      throw new Error(`Groq API returned ${response.status}`);
+      throw new Error(`Groq API returned 429 for all models. Last error: ${lastErrBody}`);
     }
 
     const data = await response.json();

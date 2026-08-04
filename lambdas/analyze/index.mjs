@@ -59,27 +59,45 @@ JOB DESCRIPTION:
 ${jdText}
 """`;
 
-  const requestBody = {
-    model: 'openai/gpt-oss-120b',
-    messages: [
-      { role: 'user', content: prompt }
-    ],
-    response_format: { type: 'json_object' }
-  };
+  // Try multiple models in order. Groq enforces separate daily token quotas per
+  // model, so if the primary model is rate-limited we fall back to another rather
+  // than failing the whole request. Only a 429 triggers a fallback; any other
+  // error status throws immediately, same as before.
+  const MODELS = ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
 
-  const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${groqApiKey}`
-    },
-    body: JSON.stringify(requestBody)
-  });
+  let groqResponse;
+  let lastErrorText;
+  for (const model of MODELS) {
+    const requestBody = {
+      model,
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      response_format: { type: 'json_object' }
+    };
+
+    groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${groqApiKey}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (groqResponse.ok) break;
+
+    lastErrorText = await groqResponse.text();
+    console.error(`Groq API error on model ${model}:`, lastErrorText);
+
+    if (groqResponse.status !== 429) {
+      throw new Error(`Groq API error: ${groqResponse.status} ${lastErrorText}`);
+    }
+    // 429 (rate limit) — try the next model
+  }
 
   if (!groqResponse.ok) {
-    const errorText = await groqResponse.text();
-    console.error('Groq API Error Text:', errorText);
-    throw new Error(`Groq API error: ${groqResponse.status} ${errorText}`);
+    throw new Error(`Groq API error: all models rate-limited. Last error: ${lastErrorText}`);
   }
 
   const responseJson = await groqResponse.json();
