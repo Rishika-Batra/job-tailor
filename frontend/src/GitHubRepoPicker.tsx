@@ -24,7 +24,7 @@ type Props = {
 };
 
 export function GitHubRepoPicker({ jobId, jdText }: Props) {
-  const { token, getFreshToken } = useAuth();
+  const { getFreshToken } = useAuth();
   const [username, setUsername] = useState('');
   const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState(false);
