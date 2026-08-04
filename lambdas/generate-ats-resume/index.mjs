@@ -22,7 +22,6 @@ export const handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ error: "Missing jobId or selectedRepos" }) };
     }
 
-    // Fetch files from S3
     const getS3Text = async (key) => {
       try {
         const cmd = new GetObjectCommand({ Bucket: bucketName, Key: key });
@@ -37,69 +36,61 @@ export const handler = async (event) => {
     const resumeText = await getS3Text(`processed/${jobId}/resume.txt`);
     const jdText = await getS3Text(`processed/${jobId}/jd.txt`);
     const finalResultStr = await getS3Text(`results/${jobId}/final.json`);
+    const resumeLinksStr = await getS3Text(`processed/${jobId}/resume-links.json`);
 
     if (!resumeText || !jdText || !finalResultStr) {
       return { statusCode: 404, body: JSON.stringify({ error: "Job data not found in S3" }) };
     }
 
-    let finalResult;
-    try {
-      finalResult = JSON.parse(finalResultStr);
-    } catch (e) {
-      finalResult = {};
-    }
+    let resumeLinks = [];
+    try { resumeLinks = resumeLinksStr ? JSON.parse(resumeLinksStr) : []; } catch (e) {}
 
+    let finalResult = {};
+    try { finalResult = JSON.parse(finalResultStr); } catch (e) {}
     const gapsAnalysis = finalResult.gaps || [];
 
-    const prompt = `You are an expert resume editor. Your task is to make TWO targeted edits to this resume for a specific job application — nothing else. Do NOT restructure, reorder, rewrite, or rephrase any other part of the resume.
+    const prompt = `You are an expert resume editor. Your task is to extract and reformat the provided resume into a strict, standardized ATS-friendly JSON schema, while making targeted edits to the Skills and Projects sections based on the Job Description.
 
 STRICT RULES:
-1. Copy EVERY section exactly as it appears in the original resume — same section names, same order, same wording — EXCEPT for the two sections below.
-2. ONLY modify these two sections:
-   a. SKILLS: reorder/lightly reword to emphasize skills that genuinely match the job description. Do not add skills the candidate doesn't have.
-   b. PROJECTS: rewrite bullets for EXISTING projects to better match the job description's language (rephrase only, no fabrication), AND add the provided selected GitHub projects with 1-2 concise bullets each.
-3. Never invent experience, skills, dates, companies, degrees, or accomplishments not present in the original resume.
-4. LENGTH CONSTRAINT — THIS IS CRITICAL: the final resume MUST fit on a single page when rendered. Be ruthlessly concise:
-   - Each bullet is ONE line only (roughly 100-120 characters max), no wrapped multi-line bullets
-   - Maximum 3 bullets per job/project
-   - Skills as a single comma-separated line, not a long list
-   - If the original resume has many projects/experience entries, keep only the most relevant ones to stay within one page — cutting weaker/less relevant original entries is acceptable to preserve length, but never fabricate to fill space
+1. Extract ALL information from the original resume and map it to the provided JSON schema. Do not drop any experience, education, or other sections.
+2. For the HEADER, extract the name, email, phone, and any URLs (GitHub, LinkedIn, Portfolio) from the text or the KNOWN HYPERLINK URLS list. Output actual URLs. CRITICAL: Do NOT hallucinate LinkedIn or LeetCode URLs. Use the EXACT URLs provided in the KNOWN HYPERLINK URLS list.
+3. For EDUCATION, create a separate entry in the array for EACH degree/school (e.g., one for B.Tech, one for 12th grade, one for 10th grade). Extract GPA/Scores if present.
+4. For SKILLS, extract the EXACT category labels word-for-word as they appear in the original resume (e.g. "Languages", "Frameworks & Tools", "Cloud & Databases", "ML/Data", "Data Visualization", "Competitive Programming" — whatever the original actually uses). Do NOT invent, rename, merge, split, or reorganize categories — never produce categories like "Front-end", "Full-stack", "DevOps", or "Artificial Intelligence" unless that EXACT label is literally in the original resume. Within each existing category you may reorder/reword items to emphasize matches with the job description, but the set of category names must be identical to the original, no more and no fewer.
+5. For PROJECTS, select exactly 3 projects total. You MUST include the selected GitHub projects provided below. If you include GitHub projects, remove some original projects so the total number of projects is EXACTLY 3. Write 1-2 concise ATS-friendly bullets for each.
+6. LENGTH CONSTRAINT: Limit bullets to EXACTLY 1-2 per experience/project to ensure it fits on one page. Do NOT exceed 2 bullets for any item. Be ruthlessly concise.
+7. Skills information belongs ONLY in the top-level "skills" field. NEVER create an "other_sections" entry for skills, technical skills, or any variant of that heading, even partially — if you already captured skills content in "skills", do not repeat any part of it anywhere else in the JSON.
 
-Return ONLY valid JSON, no preamble, no markdown fences, matching this schema:
+Return ONLY valid JSON, no preamble, no markdown fences, matching exactly this schema:
 {
   "header": {
-    "name": "string — copy exactly from the original resume",
-    "contact": "string — copy the contact line exactly (phone, email, links) as it appears in the original resume, preserving the separators used"
+    "name": "string",
+    "phone": "string",
+    "email": "string",
+    "links": ["string (e.g. https://github.com/...)"]
   },
-  "summary": "string or null — ONLY include if the original resume already has a summary/objective section; otherwise set to null, do not invent one",
-  "skills": ["string"],
+  "summary": "string or null",
+  "skills": { "Category Name": ["skill1", "skill2"] },
   "experience": [{ "title": "string", "company": "string", "dates": "string", "bullets": ["string"] }],
-  "projects": [{ "name": "string", "tech": "string", "bullets": ["string"] }],
-  "education": [{ "degree": "string", "institution": "string", "dates": "string" }],
+  "projects": [{ "name": "string", "tech": "string", "dates": "string", "url": "string or null", "bullets": ["string"] }],
+  "education": [{ "degree": "string (e.g. B.Tech, ISC 12th)", "institution": "string", "dates": "string", "gpa": "string (e.g. CGPA: 8.29, 94%)" }],
   "certifications": ["string"],
-  "other_sections": [{ "sectionTitle": "string — the exact section heading from the original resume, e.g. Positions of Responsibility", "entries": [{ "title": "string", "dates": "string", "bullets": ["string"] }] }]
+  "other_sections": [{ "sectionTitle": "string", "entries": [{ "title": "string", "dates": "string", "bullets": ["string"] }] }]
 }
 
-CRITICAL: The "header", "other_sections", and any section of the original resume not covered by summary/skills/experience/projects/education/certifications MUST be captured somewhere in this JSON. Do not silently drop any section that exists in the original resume — if it doesn't fit an existing field, put it in "other_sections" verbatim. The only fields you are allowed to meaningfully CHANGE are "skills" and "projects" — every other field should be a faithful copy of the original resume's content.
-
-Copy experience, education, and certifications directly from the original resume (verbatim structure and wording) — do not rewrite them.
-
-Include these selected GitHub projects in the "projects" array, writing 1-2 concise ATS-friendly bullets for each based on their name/description/language (do not fabricate metrics or details not implied by the description):
+SELECTED GITHUB PROJECTS (Add these to the "projects" array. For "dates", extract the year from the provided "updatedAt" field. Do not leave dates null):
 ${JSON.stringify(selectedRepos)}
 
-ORIGINAL RESUME:
+KNOWN HYPERLINK URLS (Use these to populate header links if they match):
+${JSON.stringify(resumeLinks)}
+
+ORIGINAL RESUME TEXT:
 """
 ${resumeText}
 """
 
-TARGET JOB DESCRIPTION:
+JOB DESCRIPTION:
 """
 ${jdText}
-"""
-
-KNOWN GAPS (do not try to hide these, just don't over-emphasize them):
-"""
-${JSON.stringify(gapsAnalysis)}
 """`;
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -116,20 +107,24 @@ ${JSON.stringify(gapsAnalysis)}
     });
 
     if (!response.ok) {
-      const text = await response.text();
-      console.error(`Groq API error: ${response.status} ${text}`);
+      const errBody = await response.text();
+      console.error(`Groq API error ${response.status}:`, errBody);
       throw new Error(`Groq API returned ${response.status}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "{}";
     
-    let parsedResult;
-    try {
-      parsedResult = JSON.parse(content);
-    } catch (parseError) {
-      console.error(`Failed to parse Groq response as JSON. Raw response:\n\`\`\`\n${content}\n\`\`\``);
-      throw parseError;
+    let parsedResult = JSON.parse(content);
+
+    // Merge real repo URLs back in
+    if (parsedResult.projects) {
+      parsedResult.projects = parsedResult.projects.slice(0, 3);
+      const repoByName = Object.fromEntries((selectedRepos || []).map(r => [(r.name || '').toLowerCase(), r]));
+      parsedResult.projects = parsedResult.projects.map(p => {
+        const match = repoByName[(p.name || '').toLowerCase()];
+        return match ? { ...p, url: match.url || match.html_url || p.url } : p;
+      });
     }
 
     await s3Client.send(new PutObjectCommand({
@@ -139,15 +134,9 @@ ${JSON.stringify(gapsAnalysis)}
       ContentType: "application/json"
     }));
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ jobId, structuredResume: parsedResult })
-    };
+    return { statusCode: 200, body: JSON.stringify({ jobId, structuredResume: parsedResult }) };
   } catch (error) {
     console.error("Error generating ATS resume:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: "Internal server error" })
-    };
+    return { statusCode: 500, body: JSON.stringify({ error: "Internal server error" }) };
   }
 };

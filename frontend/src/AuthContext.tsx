@@ -7,6 +7,7 @@ interface AuthContextType {
   login: (token: string) => void;
   logout: () => void;
   isLoading: boolean;
+  getFreshToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,8 +39,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
   };
 
+  const getFreshToken = async () => {
+    const freshToken = await getCurrentUserToken();
+    if (freshToken !== token) {
+      setToken(freshToken);
+    }
+    return freshToken;
+  };
+
   return (
-    <AuthContext.Provider value={{ token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ token, login, logout, isLoading, getFreshToken }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,9 +1,29 @@
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createRequire } from 'module';
+
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
+const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 
 const s3Client = new S3Client({});
+
+// Pulls every hyperlink annotation out of the PDF, in reading order (top-to-bottom,
+// left-to-right per page). pdf-parse never sees these — they live in /Annots, not the
+// text stream — so this is the only way to recover clickable URLs.
+async function extractLinks(pdfBytes) {
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBytes) }).promise;
+  const links = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const annotations = await page.getAnnotations();
+    const pageLinks = annotations
+      .filter(a => a.subtype === 'Link' && a.url)
+      .map(a => ({ url: a.url, y: a.rect[1], x: a.rect[0] }));
+    pageLinks.sort((a, b) => (b.y - a.y) || (a.x - b.x));
+    links.push(...pageLinks.map(l => l.url));
+  }
+  return links;
+}
 
 export const handler = async (event) => {
   const { jobId } = event;
@@ -26,6 +46,14 @@ export const handler = async (event) => {
   const data = await pdfParse(Buffer.from(resumeBytes));
   const resumeText = data.text;
 
+  // 2b. Extract hyperlink URLs separately, since pdf-parse drops them
+  let resumeLinks = [];
+  try {
+    resumeLinks = await extractLinks(Buffer.from(resumeBytes));
+  } catch (err) {
+    console.error('Link extraction failed (non-fatal):', err);
+  }
+
   // 3. Fetch JD text from S3
   const getJdCmd = new GetObjectCommand({
     Bucket: bucketName,
@@ -43,6 +71,15 @@ export const handler = async (event) => {
     ContentType: 'text/plain'
   });
   await s3Client.send(putResumeCmd);
+
+  // 4b. Write extracted links to S3, in reading order
+  const putLinksCmd = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: `processed/${jobId}/resume-links.json`,
+    Body: JSON.stringify(resumeLinks),
+    ContentType: 'application/json'
+  });
+  await s3Client.send(putLinksCmd);
 
   // 5. Write JD text to S3
   const putJdCmd = new PutObjectCommand({

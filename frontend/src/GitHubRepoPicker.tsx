@@ -24,7 +24,7 @@ type Props = {
 };
 
 export function GitHubRepoPicker({ jobId, jdText }: Props) {
-  const { token } = useAuth();
+  const { token, getFreshToken } = useAuth();
   const [username, setUsername] = useState('');
   const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -44,9 +44,10 @@ export function GitHubRepoPicker({ jobId, jdText }: Props) {
     setSuggestions({});
 
     try {
+      const activeToken = await getFreshToken();
       const res = await fetch(`${API_BASE}/github-repos?username=${encodeURIComponent(username.trim())}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${activeToken}`
         }
       });
 
@@ -73,7 +74,7 @@ export function GitHubRepoPicker({ jobId, jdText }: Props) {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
+              'Authorization': `Bearer ${activeToken}`
             },
             body: JSON.stringify({ 
               jdText, 
@@ -89,9 +90,13 @@ export function GitHubRepoPicker({ jobId, jdText }: Props) {
             const suggData = await suggRes.json();
             const suggs: Suggestion[] = suggData.suggestions || [];
             
-            suggs.forEach(s => {
+            suggs.sort((a, b) => a.rank - b.rank);
+
+            suggs.forEach((s, idx) => {
               finalSuggestions[s.name] = s;
-              finalSelected.add(s.name);
+              if (idx < 3) {
+                finalSelected.add(s.name);
+              }
             });
           }
         } catch (suggErr) {
@@ -126,13 +131,15 @@ export function GitHubRepoPicker({ jobId, jdText }: Props) {
     setResumeError(null);
     
     try {
+      const activeToken = await getFreshToken();
       const selectedRepoObjects = repos
         .filter(r => selectedRepos.has(r.name))
         .map(r => ({
           name: r.name,
           description: r.description,
           language: r.language,
-          url: r.url
+          url: r.url,
+          updatedAt: r.updatedAt
         }));
 
       // 1. Generate Content
@@ -140,7 +147,7 @@ export function GitHubRepoPicker({ jobId, jdText }: Props) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({
           jobId,
@@ -157,7 +164,7 @@ export function GitHubRepoPicker({ jobId, jdText }: Props) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({ jobId })
       });

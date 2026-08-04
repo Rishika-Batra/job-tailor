@@ -46,7 +46,7 @@ export default function AnalyzePage() {
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { token } = useAuth()
+  const { token, getFreshToken } = useAuth()
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -111,13 +111,14 @@ export default function AnalyzePage() {
     setError(null)
 
     try {
-      console.log('Sending token (first 30 chars):', token ? token.substring(0, 30) + '...' : 'null');
+      const activeToken = await getFreshToken();
+      console.log('Sending token (first 30 chars):', activeToken ? activeToken.substring(0, 30) + '...' : 'null');
       const resumeBase64 = await fileToBase64(resumeFile)
       const res = await fetch(`${API_BASE}/submit`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({ resumeBase64, jdText }),
       })
